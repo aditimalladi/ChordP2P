@@ -42,7 +42,7 @@ defmodule NwNode do
   # succ - Succesor of current node
   # pred - Predecessor of current node
   def init(:ok) do
-    {:ok, %{:key => [], :finger => %{}, :succ => nil, :pred => nil, :id => Utils.hash_modulus(self())}}
+    {:ok, %{:key => [], :finger => %{}, :succ => nil, :pred => nil, :id => Utils.hash_modulus(self()), :next => 0}}
   end
 
   def handle_cast({:create}, state) do
@@ -79,13 +79,27 @@ defmodule NwNode do
     {:noreply, state}
   end
 
-  # def handle_cast({:fix_fingers}, state) do
-  #   state = Map.replace(state, :succ = state[:id]) 
-  #   {:noreply, state}
-  # end
+    #TODO: Streamline 10
+    #TODO: Implement check_pred function (in paper) that checks for the failure of nodes
+  def handle_cast({:fix_fingers}, state) do
+    next = state[:next]
+    finger = state[:finger]
+    next = next + 1
+    if(next > 10) do
+      next = 1
+      temp = find_successor(self(), state[:id] + :math.pow(2, next - 1) |> trunc)
+      finger = Map.put(finger, next, temp)
+      state = Map.replace(state, :finger, finger)
+      state = Map.replace(state, :next, next)
+      {:noreply, state}
+    end
+    temp = find_successor(self(), state[:id] + :math.pow(2, next - 1) |> trunc)
+    finger = Map.put(finger, next, temp)
+    state = Map.replace(state, :finger, finger)
+    state = Map.replace(state, :next, next)
+    {:noreply, state}
+  end
 
-  #TODO: Streamline m
-  # m = 10 here
   def handle_call({:closest_preceding_node, id}, _from, state) do
     finger = state[:finger]
     size = Enum.count(Map.get_keys(finger))
