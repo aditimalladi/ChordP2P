@@ -10,7 +10,7 @@ defmodule Chief do
   end
 
   def update_kash(server, new_kash, new_node) do
-    GenServer.cast(server, {:put, new_kash, new_node})
+    GenServer.cast(server, {:update_kash, new_kash, new_node})
   end
 
   # kash : key-hash
@@ -26,9 +26,11 @@ defmodule Chief do
     {:ok, %{:node_list => [], :lookuptable => %{}}}
   end
 
-  def handle_cast({:set_neighbors, new_node}, state) do
-    state = [state | new_node]
-    state = Enum.sort(state)
+  def handle_cast({:put, new_node}, state) do
+    node_list = state[:node_list]
+    node_list = node_list ++ [new_node]
+    node_list = Enum.sort(node_list)
+    state = Map.replace(state, :node_list, node_list)
     {:noreply, state}
   end
 
@@ -40,11 +42,11 @@ defmodule Chief do
   end
 
   def handle_call({:get}, _from, state) do
-    {:reply, state, state}
+    {:reply, state[:node_list], state}
   end
 
   def handle_call({:lookup, kash}, _from, state) do
-    {:reply, state[:lookupTable][kash], state}
+    {:reply, state[:lookuptable][kash], state}
   end
 
 end
