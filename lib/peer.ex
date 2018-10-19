@@ -111,7 +111,7 @@ defmodule Peer do
         b_og_pid = Chief.lookup(MyChief, b_og)
         b = Peer.get_predecessor(b_og_pid)
         IO.puts "Check range #{x} #{state[:id]} #{b}"
-        if Utils.check_in_range_self(x, state[:id], b, false, state) do
+        if Utils.real_deal_exclusion(x, state[:id], b) do
           state = Map.replace(state, :succ, x)
           x_pid = Chief.lookup(MyChief, x)
           Peer.notify(x_pid, state[:id])
@@ -129,13 +129,13 @@ defmodule Peer do
     pred = state[:pred]
     IO.puts "Check range NOTIFY #{peer_id} #{pred} #{state[:id]}"
     if(pred == state[:id]) do
-      if(pred == nil || Utils.check_in_range_self(peer_id, pred, state[:id], false, state)) do
+      if(pred == nil || Utils.real_deal_exclusion(peer_id, pred, state[:id])) do
         state = Map.replace(state, :pred, peer_id)
         {:noreply, state}
       end
     else
       IO.puts "Check range not self NOTIFY #{peer_id} #{pred} #{state[:id]}"
-      if(pred == nil || Utils.check_in_range(peer_id, pred, state[:id], false)) do
+      if(pred == nil || Utils.real_deal_exclusion(peer_id, pred, state[:id])) do
         state = Map.replace(state, :pred, peer_id)
         {:noreply, state}
       end
@@ -145,7 +145,8 @@ defmodule Peer do
 
   # m here is defined here as 10!!!!! NOT DYNAMIC
   def handle_cast({:fix_fingers}, state) do
-    IO.puts "fix_fingers"
+    IO.puts "IN FIX_FINGERS"
+    IO.inspect state
     next = state[:next]
     finger = state[:finger_table]
     next = next + 1
@@ -166,6 +167,9 @@ defmodule Peer do
 
   def handle_cast({:set_successor, succ}, state) do
     state = Map.replace(state, :succ, succ)
+    finger = state[:finger_table]
+    finger = Map.put(finger, 0, succ)
+    state = Map.replace(state, :finger_table, finger)
     {:noreply, state}
   end
 
@@ -181,14 +185,19 @@ defmodule Peer do
     if (state[:id] == state[:succ]) do
       {:reply, state[:succ], state}
     else
-      if(Utils.check_in_range(peer_id, state[:id], state[:succ], false)) do
+      if(Utils.real_deal_inclusion(peer_id, state[:id], state[:succ])) do
         {:reply, state[:succ], state}
       else
         peer_pid = Chief.lookup(MyChief, peer_id)
         n_dash = closet_preceding_nodep(peer_id, state)
-        n_dash_pid = Chief.lookup(MyChief, n_dash)
-        k = find_succ(n_dash_pid, peer_id)
-        {:reply, k, state}
+        if(n_dash == state[:id]) do
+          k = find_successorp(peer_id, state)
+          {:reply, k, state}
+        else
+          n_dash_pid = Chief.lookup(MyChief, n_dash)
+          k = find_succ(n_dash_pid, peer_id)
+          {:reply, k, state}
+        end
       end
     end
   end
@@ -206,9 +215,9 @@ defmodule Peer do
   def handle_call({:closet_preceding_node, peer_id}, _from, state) do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
-    list_m = Enum.reverse(0..size)
+    list_m = Enum.reverse(0..size-1)
     finger_list = Enum.map(list_m, fn(i)->
-      if(Utils.check_in_range(finger[i], state[:id], peer_id, false)) do
+      if(Utils.real_deal_exclusion(finger[i], state[:id], peer_id)) do
         finger[i]
       end
     end)
@@ -227,23 +236,29 @@ defmodule Peer do
   end
 
   defp find_successorp(peer_id, state) do
-    IO.puts "FindSucc on #{state[:id]} with #{peer_id} HC"
-    if(Utils.check_in_range_self(peer_id, state[:id], state[:succ], false, state)) do
+    IO.puts "find_successorp"
+    IO.inspect state
+    if(Utils.real_deal_inclusion(peer_id, state[:id], state[:succ])) do
+      IO.puts "FIND SUCC INSIDE UTILS"
       state[:succ]
     else
       peer_pid = Chief.lookup(MyChief, peer_id)
       n_dash = closet_preceding_nodep(peer_id, state)
       n_dash_pid = Chief.lookup(MyChief, n_dash)
-      find_succ(n_dash_pid, peer_id)
+      if(n_dash == state[:id]) do
+        find_successorp(peer_id, state)
+      else
+        find_succ(n_dash_pid, peer_id)
+      end
     end
   end
 
   def closet_preceding_nodep(peer_id, state) do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
-    list_m = Enum.reverse(0..size)
+    list_m = Enum.reverse(0..size-1)
     finger_list = Enum.map(list_m, fn(i)->
-      if(Utils.check_in_range_self(finger[i], state[:id], peer_id, false, state)) do
+      if(Utils.real_deal_exclusion(finger[i], state[:id], peer_id)) do
         finger[i]
       end
     end)
@@ -260,8 +275,8 @@ defmodule Peer do
   def handle_info(:work, state) do
     if(state[:work] == true) do
       IO.puts "Stabilize and fix fingers"
-      stabilize(self())
-      # fix_fingers(self())
+      # stabilize(self())
+      fix_fingers(self())
     end
     allow_work()
     {:noreply, state}
