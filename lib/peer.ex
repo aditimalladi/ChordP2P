@@ -60,6 +60,7 @@ defmodule Peer do
   def get_state(server) do
     GenServer.call(server, {:get_state})
   end
+  
 
 
   # state stores successor, predecessor, id = it's PID hash (it's identifier), finger table
@@ -145,7 +146,7 @@ defmodule Peer do
 
   # m here is defined here as 10!!!!! NOT DYNAMIC
   def handle_cast({:fix_fingers}, state) do
-    IO.puts "IN FIX_FINGERS"
+    IO.puts "IN FIX_FINGERS #{state[:id]}"
     IO.inspect state
     next = state[:next]
     finger = state[:finger_table]
@@ -154,22 +155,25 @@ defmodule Peer do
       next = 1
       temp = find_successorp(state[:id] + :math.pow(2, next - 1) |> trunc, state)
       finger = Map.put(finger, next, temp)
-      state = Map.replace(state, :finger, finger)
+      state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
       {:noreply, state}
     end
     temp = find_successorp(state[:id] + :math.pow(2, next - 1) |> trunc, state)
+    IO.puts "State id #{state[:id]} and the temp #{temp}"
     finger = Map.put(finger, next, temp)
-    state = Map.replace(state, :finger, finger)
+    state = Map.replace(state, :finger_table, finger)
     state = Map.replace(state, :next, next)
+    IO.puts "Printing state in fix_fingers"
+    IO.inspect state
     {:noreply, state}
   end
 
   def handle_cast({:set_successor, succ}, state) do
     state = Map.replace(state, :succ, succ)
-    finger = state[:finger_table]
-    finger = Map.put(finger, 0, succ)
-    state = Map.replace(state, :finger_table, finger)
+    # finger = state[:finger_table]
+    # finger = Map.put(finger, 0, succ)
+    # state = Map.replace(state, :finger_table, finger)
     {:noreply, state}
   end
 
@@ -185,7 +189,8 @@ defmodule Peer do
     if (state[:id] == state[:succ]) do
       {:reply, state[:succ], state}
     else
-      if(Utils.real_deal_inclusion(peer_id, state[:id], state[:succ])) do
+      if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
+        IO.puts "GenServer INCLUSION of UTILS"
         {:reply, state[:succ], state}
       else
         peer_pid = Chief.lookup(MyChief, peer_id)
@@ -215,9 +220,9 @@ defmodule Peer do
   def handle_call({:closet_preceding_node, peer_id}, _from, state) do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
-    list_m = Enum.reverse(0..size-1)
+    list_m = Enum.reverse(1..size)
     finger_list = Enum.map(list_m, fn(i)->
-      if(Utils.real_deal_exclusion(finger[i], state[:id], peer_id)) do
+      if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
         finger[i]
       end
     end)
@@ -237,8 +242,8 @@ defmodule Peer do
 
   defp find_successorp(peer_id, state) do
     IO.puts "find_successorp"
-    IO.inspect state
-    if(Utils.real_deal_inclusion(peer_id, state[:id], state[:succ])) do
+    # IO.inspect state
+    if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
       IO.puts "FIND SUCC INSIDE UTILS"
       state[:succ]
     else
@@ -256,9 +261,9 @@ defmodule Peer do
   def closet_preceding_nodep(peer_id, state) do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
-    list_m = Enum.reverse(0..size-1)
+    list_m = Enum.reverse(1..size)
     finger_list = Enum.map(list_m, fn(i)->
-      if(Utils.real_deal_exclusion(finger[i], state[:id], peer_id)) do
+      if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
         finger[i]
       end
     end)

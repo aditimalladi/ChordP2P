@@ -57,9 +57,9 @@ defmodule Utils do
 
   def real_deal_exclusion(x, a, b) do
     IO.puts "REAL DEAL MOFOOOOOO #{x} #{a} #{b} HC"
-    IO.inspect x
-    IO.inspect a
-    IO.inspect b
+    # IO.inspect x
+    # IO.inspect a
+    # IO.inspect b
     node_list = Chief.get(MyChief)
     IO.inspect node_list
     cond do
@@ -90,6 +90,7 @@ defmodule Utils do
   end
 
   def real_deal_inclusion(x, a, b) do
+    IO.puts "INCLUSION REAL DEAL #{x} #{a} #{b}"
     node_list = Chief.get(MyChief)
     cond do
       x == nil ->
@@ -111,5 +112,50 @@ defmodule Utils do
     end
   end
 
+  def real_succ_incl(x, a, b) do
+    IO.puts "REAL SUCC INCL #{x} #{a} #{b} HC"
+    node_list = Chief.get(MyChief)
+    IO.inspect node_list
+    cond do
+      a == nil || b == nil || x== nil ->
+        false
+      a == b ->
+        if(x == a)do
+          true
+        else
+          false
+        end
+      a < b ->
+        x in a+1..b
+      a > b ->
+          # split into 2 parts 
+          last_index = length(node_list) - 1
+          # last_ele = Enum.fetch!(node_list, last_index)
+          x in 0..b || x in a+1..(:math.pow(2, 10) |> trunc)
+      end
+  end
+
+  def real_succ_excl(x, a, b) do
+    IO.puts "REAL SUCC EXCL #{x} #{a} #{b} HC"
+    node_list = Chief.get(MyChief)
+    IO.inspect node_list
+    cond do
+      a == nil || b == nil || x== nil ->
+        false
+      a == b ->
+        if(x == a)do
+          true
+        else
+          false
+        end
+      a < b ->
+        x in a+1..b-1
+      a > b ->
+          # split into 2 parts 
+          last_index = length(node_list) - 1
+          # last_ele = Enum.fetch!(node_list, last_index)
+          x in 0..b-1 || x in a+1..(:math.pow(2, 10) |> trunc)
+    end
+  end
 
 end

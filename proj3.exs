@@ -22,19 +22,34 @@ first_node_pid = Chief.lookup(MyChief, first_node)
 
 Peer.create(first_node_pid)
 
-# Enum.each(1..length(node_list)-1, fn(i)->
-#   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
-#   Peer.join(node_pid, Enum.fetch!(node_list, i-1))
-# end)
+Enum.each(1..length(node_list)-1, fn(i)->
+  node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
+  Peer.join(node_pid, Enum.fetch!(node_list, i-1))
+end)
 
 head = Enum.fetch!(node_list, 0)
 tail = Enum.fetch!(node_list, length(node_list)-1)
 Peer.set_successor(Chief.lookup(MyChief, tail), head)
 Peer.set_predecessor(Chief.lookup(MyChief, head), tail)
 
-Enum.each(1..length(node_list)-1, fn(i)->
-  node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
-  Peer.join(node_pid, Enum.fetch!(node_list, i-1))
-end)
+:timer.sleep(1000)
+
+k = :sys.get_state(chief_pid)
+IO.puts "This is the chief state"
+IO.inspect k
+# Enum.each(0..length(node_list)-1, fn(i)->
+#   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
+#   Peer.fix_fingers(node_pid)
+# end)
+
+# Enum.each(0..length(node_list)-1, fn(i)->
+#   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
+#   Peer.fix_fingers(node_pid)
+# end)
+
+# Enum.each(0..length(node_list)-1, fn(i)->
+#   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
+#   Peer.fix_fingers(node_pid)
+# end)
 
 :timer.sleep(10000000)
