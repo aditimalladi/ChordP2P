@@ -151,21 +151,24 @@ defmodule Peer do
     next = state[:next]
     finger = state[:finger_table]
     next = next + 1
+    # IO.puts "next outside #{next}"
     if(next > 10) do
-      # IO.puts "It this being reached?"
+      # IO.puts "next #{next}"
       next = 1
       temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, 1024), state)
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
       {:noreply, state}
+    else
+      temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, 1024), state)
+      # IO.puts "State id #{state[:id]} and the temp #{temp}"
+      finger = Map.put(finger, next, temp)
+      state = Map.replace(state, :finger_table, finger)
+      state = Map.replace(state, :next, next)
+      {:noreply, state}
     end
-    temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, 1024), state)
-    # IO.puts "State id #{state[:id]} and the temp #{temp}"
-    finger = Map.put(finger, next, temp)
-    state = Map.replace(state, :finger_table, finger)
-    state = Map.replace(state, :next, next)
-    {:noreply, state}
+    
   end
 
   def handle_cast({:set_successor, succ}, state) do
