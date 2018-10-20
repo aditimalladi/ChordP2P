@@ -34,13 +34,9 @@ Peer.set_predecessor(Chief.lookup(MyChief, head), tail)
 
 :timer.sleep(1000)
 
-k = :sys.get_state(chief_pid)
-IO.puts "This is the chief state"
-IO.inspect k
-# Enum.each(0..length(node_list)-1, fn(i)->
-#   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
-#   Peer.fix_fingers(node_pid)
-# end)
+# k = :sys.get_state(chief_pid)
+# IO.puts "This is the chief state"
+# IO.inspect k
 
 # Enum.each(0..length(node_list)-1, fn(i)->
 #   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
@@ -50,6 +46,11 @@ IO.inspect k
 # Enum.each(0..length(node_list)-1, fn(i)->
 #   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
 #   Peer.fix_fingers(node_pid)
+# end)
+
+# Enum.each(0..length(node_list)-1, fn(i)->
+#   node_pid = Chief.lookup(MyChief, Enum.fetch!(node_list, i))
+#   Peer.update_fingers(node_pid)
 # end)
 
 :timer.sleep(10000000)

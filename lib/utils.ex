@@ -33,8 +33,8 @@ defmodule Utils do
   # to check if the given node is in the given range
   def check_in_range(x, a, b, accumulator) do
     a_pid = Chief.lookup(MyChief, a)
-    IO.puts "Check in range NOT SELF #{x} #{a} #{b} HC"
-    IO.inspect self()
+    # IO.puts "Check in range NOT SELF #{x} #{a} #{b} HC"
+    # IO.inspect self()
     succ = Peer.get_successor(a_pid)
     succ_pid = Chief.lookup(MyChief, succ)
     if a == b do
@@ -56,12 +56,12 @@ defmodule Utils do
 
 
   def real_deal_exclusion(x, a, b) do
-    IO.puts "REAL DEAL MOFOOOOOO #{x} #{a} #{b} HC"
+    # IO.puts "REAL DEAL MOFOOOOOO #{x} #{a} #{b} HC"
     # IO.inspect x
     # IO.inspect a
     # IO.inspect b
     node_list = Chief.get(MyChief)
-    IO.inspect node_list
+    # IO.inspect node_list
     cond do
       a == nil || b == nil || x== nil ->
         false
@@ -90,7 +90,7 @@ defmodule Utils do
   end
 
   def real_deal_inclusion(x, a, b) do
-    IO.puts "INCLUSION REAL DEAL #{x} #{a} #{b}"
+    # IO.puts "INCLUSION REAL DEAL #{x} #{a} #{b}"
     node_list = Chief.get(MyChief)
     cond do
       x == nil ->
@@ -113,9 +113,9 @@ defmodule Utils do
   end
 
   def real_succ_incl(x, a, b) do
-    IO.puts "REAL SUCC INCL #{x} #{a} #{b} HC"
+    # IO.puts "REAL SUCC INCL #{x} #{a} #{b} HC"
     node_list = Chief.get(MyChief)
-    IO.inspect node_list
+    # IO.inspect node_list
     cond do
       a == nil || b == nil || x== nil ->
         false
@@ -129,16 +129,16 @@ defmodule Utils do
         x in a+1..b
       a > b ->
           # split into 2 parts 
-          last_index = length(node_list) - 1
+          # last_index = length(node_list) - 1
           # last_ele = Enum.fetch!(node_list, last_index)
           x in 0..b || x in a+1..(:math.pow(2, 10) |> trunc)
       end
   end
 
   def real_succ_excl(x, a, b) do
-    IO.puts "REAL SUCC EXCL #{x} #{a} #{b} HC"
+    # IO.puts "REAL SUCC EXCL #{x} #{a} #{b} HC"
     node_list = Chief.get(MyChief)
-    IO.inspect node_list
+    # IO.inspect node_list
     cond do
       a == nil || b == nil || x== nil ->
         false
