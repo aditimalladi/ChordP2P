@@ -1,13 +1,14 @@
 defmodule Utils do
   # node's pid is passed and then converted to a string
   # that string is then hashed using SHA-1 ans trucated to 2^20 bits
-  def hash_modulus(node_pid) do
-    str_num = :erlang.pid_to_list(node_pid)
-    rand_string = :crypto.strong_rand_bytes(20) |> Base.url_encode64 |> binary_part(0, 20)
-    str_num = to_string(str_num) <> rand_string
-    num = :crypto.hash(:sha, str_num) |> Base.encode16
+  def hash_modulus(node_name) do
+    # str_num = :erlang.pid_to_list(node_pid)
+    # rand_string = :crypto.strong_rand_bytes(20) |> Base.url_encode64 |> binary_part(0, 20)
+    # str_num = to_string(str_num) <> rand_string
+    str_num = Atom.to_string(node_name)
+    num = :crypto.hash(:sha, str_num) |> Base.encode16()
     {int_num, _} = Integer.parse(num, 16)
-    rem(int_num, :math.pow(2,20) |> trunc)
+    rem(int_num, :math.pow(2, 20) |> trunc)
   end
 
   # for when a == self()
@@ -15,6 +16,7 @@ defmodule Utils do
     a_pid = Chief.lookup(MyChief, a)
     succ = state[:succ]
     succ_pid = Chief.lookup(MyChief, succ)
+
     if a == b do
       if x == a do
         true
@@ -25,9 +27,9 @@ defmodule Utils do
       if(x == succ) do
         # HERE
         state = Peer.get_state(succ_pid)
-        check_in_range_self(x, succ, b, (succ == x) || accumulator, state)
+        check_in_range_self(x, succ, b, succ == x || accumulator, state)
       else
-        check_in_range(x, succ, b, (succ == x) || accumulator)
+        check_in_range(x, succ, b, succ == x || accumulator)
       end
     end
   end
@@ -39,6 +41,7 @@ defmodule Utils do
     # IO.inspect self()
     succ = Peer.get_successor(a_pid)
     succ_pid = Chief.lookup(MyChief, succ)
+
     if a == b do
       if x == a do
         true
@@ -49,13 +52,12 @@ defmodule Utils do
       if(x == succ) do
         # HERE
         state = Peer.get_state(succ_pid)
-        check_in_range_self(x, succ, b, (succ == x) || accumulator, state)
+        check_in_range_self(x, succ, b, succ == x || accumulator, state)
       else
-        check_in_range(x, succ, b, (succ == x) || accumulator)
+        check_in_range(x, succ, b, succ == x || accumulator)
       end
     end
   end
-
 
   def real_deal_exclusion(x, a, b) do
     # IO.puts "REAL DEAL MOFOOOOOO #{x} #{a} #{b} HC"
@@ -65,52 +67,60 @@ defmodule Utils do
     node_list = Chief.get(MyChief)
     # IO.inspect node_list
     cond do
-      a == nil || b == nil || x== nil ->
+      a == nil || b == nil || x == nil ->
         false
+
       a not in node_list || b not in node_list ->
         false
+
       a == b ->
         false
+
       a < b ->
-        index_a = Enum.find_index(node_list, fn(i) -> i==a end)
-        index_b = Enum.find_index(node_list, fn(i) -> i==b end)
-        IO.puts "#{a} this is a"
-        IO.puts "#{b} this is b"
-        IO.puts "#{index_a} this is a_index"
-        IO.puts "#{index_b} this is b_index"
-        IO.puts "#{index_b-index_a-1} this is idk what"
-        check_list = Enum.slice(node_list, index_a+1, index_b-index_a-1)
+        index_a = Enum.find_index(node_list, fn i -> i == a end)
+        index_b = Enum.find_index(node_list, fn i -> i == b end)
+        IO.puts("#{a} this is a")
+        IO.puts("#{b} this is b")
+        IO.puts("#{index_a} this is a_index")
+        IO.puts("#{index_b} this is b_index")
+        IO.puts("#{index_b - index_a - 1} this is idk what")
+        check_list = Enum.slice(node_list, index_a + 1, index_b - index_a - 1)
         x in check_list
+
       a > b ->
-          index_a = Enum.find_index(node_list, fn(i) -> i==a end)
-          index_b = Enum.find_index(node_list, fn(i) -> i==b end)
-          last_index = length(node_list) - 1
-          checklist_1 = Enum.slice(node_list, index_a+1, last_index)
-          checklist_2 = Enum.slice(node_list, 0, index_b)
-          x in checklist_1 || x in checklist_2
+        index_a = Enum.find_index(node_list, fn i -> i == a end)
+        index_b = Enum.find_index(node_list, fn i -> i == b end)
+        last_index = length(node_list) - 1
+        checklist_1 = Enum.slice(node_list, index_a + 1, last_index)
+        checklist_2 = Enum.slice(node_list, 0, index_b)
+        x in checklist_1 || x in checklist_2
     end
   end
 
   def real_deal_inclusion(x, a, b) do
     # IO.puts "INCLUSION REAL DEAL #{x} #{a} #{b}"
     node_list = Chief.get(MyChief)
+
     cond do
       x == nil ->
         false
+
       a == b ->
         false
+
       a < b ->
-        index_a = Enum.find_index(node_list, fn(i) -> i==a end)
-        index_b = Enum.find_index(node_list, fn(i) -> i==b end)
-        check_list = Enum.slice(node_list, index_a+1, index_b-index_a)
+        index_a = Enum.find_index(node_list, fn i -> i == a end)
+        index_b = Enum.find_index(node_list, fn i -> i == b end)
+        check_list = Enum.slice(node_list, index_a + 1, index_b - index_a)
         x in check_list
+
       a > b ->
-          index_a = Enum.find_index(node_list, fn(i) -> i==a end)
-          index_b = Enum.find_index(node_list, fn(i) -> i==b end)
-          last_index = length(node_list) - 1
-          checklist_1 = Enum.slice(node_list, index_a+1, last_index)
-          checklist_2 = Enum.slice(node_list, 0, index_b + 1)
-          x in checklist_1 || x in checklist_2
+        index_a = Enum.find_index(node_list, fn i -> i == a end)
+        index_b = Enum.find_index(node_list, fn i -> i == b end)
+        last_index = length(node_list) - 1
+        checklist_1 = Enum.slice(node_list, index_a + 1, last_index)
+        checklist_2 = Enum.slice(node_list, 0, index_b + 1)
+        x in checklist_1 || x in checklist_2
     end
   end
 
@@ -119,22 +129,25 @@ defmodule Utils do
     node_list = Chief.get(MyChief)
     # IO.inspect node_list
     cond do
-      a == nil || b == nil || x== nil ->
+      a == nil || b == nil || x == nil ->
         false
+
       a == b ->
-        if(x == a)do
+        if(x == a) do
           true
         else
           false
         end
+
       a < b ->
-        x in a+1..b
+        x in (a + 1)..b
+
       a > b ->
-          # split into 2 parts 
-          # last_index = length(node_list) - 1
-          # last_ele = Enum.fetch!(node_list, last_index)
-          x in 0..b || x in a+1..(:math.pow(2, 20) |> trunc)
-      end
+        # split into 2 parts 
+        # last_index = length(node_list) - 1
+        # last_ele = Enum.fetch!(node_list, last_index)
+        x in 0..b || x in (a + 1)..(:math.pow(2, 20) |> trunc)
+    end
   end
 
   def real_succ_excl(x, a, b) do
@@ -142,41 +155,52 @@ defmodule Utils do
     node_list = Chief.get(MyChief)
     # IO.inspect node_list
     cond do
-      a == nil || b == nil || x== nil ->
+      a == nil || b == nil || x == nil ->
         false
+
       a == b ->
-        if(x == a)do
+        if(x == a) do
           true
         else
           false
         end
+
       a < b ->
-        x in a+1..b-1
+        x in (a + 1)..(b - 1)
+
       a > b ->
-          # split into 2 parts 
-          last_index = length(node_list) - 1
-          # last_ele = Enum.fetch!(node_list, last_index)
-          x in 0..b-1 || x in a+1..(:math.pow(2, 20) |> trunc)
+        # split into 2 parts 
+        last_index = length(node_list) - 1
+        # last_ele = Enum.fetch!(node_list, last_index)
+        x in 0..(b - 1) || x in (a + 1)..(:math.pow(2, 20) |> trunc)
     end
   end
 
   def find_succ(n, id, data) do
+    # IO.puts "Is this being called continously"
     [{_, state}] = :ets.lookup(data, n)
+
     if(Utils.real_succ_incl(id, state[:id], state[:succ])) do
       state[:succ]
     else
       n_dash = closet_preceding_node(id, state)
-      find_succ(n_dash, id, data)
+
+      if(n_dash == n) do
+        n
+      else
+        find_succ(n_dash, id, data)
+      end
     end
   end
 
   def find_succ_acc(n, id, data, acc) do
     [{_, state}] = :ets.lookup(data, n)
+
     if(Utils.real_succ_incl(id, state[:id], state[:succ])) do
       acc
     else
       n_dash = closet_preceding_node(id, state)
-      find_succ_acc(n_dash, id, data, acc+1)
+      find_succ_acc(n_dash, id, data, acc + 1)
     end
   end
 
@@ -184,11 +208,14 @@ defmodule Utils do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
     list_m = Enum.reverse(1..size)
-    finger_list = Enum.map(list_m, fn(i)->
-      if(Utils.real_succ_excl(finger[i], state[:id], id)) do
-        finger[i]
-      end
-    end)
+
+    finger_list =
+      Enum.map(list_m, fn i ->
+        if(Utils.real_succ_excl(finger[i], state[:id], id)) do
+          finger[i]
+        end
+      end)
+
     finger_list = Enum.uniq(finger_list)
     # here is what can be returned from the function
     if(finger_list == [nil]) do
@@ -200,19 +227,19 @@ defmodule Utils do
   end
 
   def lookup_node(source, dest, accumulator) do
-    IO.puts "AC source #{source}"
-    IO.puts "AC dest #{dest}"
+    IO.puts("AC source #{source}")
+    IO.puts("AC dest #{dest}")
     node_list = Chief.get(MyChief)
     source_pid = Chief.lookup(MyChief, source)
     succ = Peer.find_succ(source_pid, dest)
-    IO.puts "AC succ #{succ}"
+    IO.puts("AC succ #{succ}")
+
     if(succ == dest) do
-      IO.puts "Match"
+      IO.puts("Match")
       accumulator
     else
-      IO.puts "Again"
+      IO.puts("Again")
       lookup_node(succ, dest, accumulator + 1)
     end
   end
-  
 end

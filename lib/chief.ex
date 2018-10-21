@@ -51,5 +51,4 @@ defmodule Chief do
   def handle_call({:lookup, kash}, _from, state) do
     {:reply, state[:lookuptable][kash], state}
   end
-
 end

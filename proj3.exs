@@ -7,12 +7,12 @@
 # ets table
 IO.inspect data = :ets.new(:data, [:set, :named_table, :public])
 
-
 {:ok, chief_pid} = Chief.start_link([])
 Process.register chief_pid, MyChief
 
 Enum.each(0..numNodes-1, fn(i)->
-  {:ok, node_pid} = Peer.start_link(20, data, [])
+  node_name = ("Node" <> Integer.to_string(i)) |> String.to_atom()
+  {:ok, node_pid} = Peer.start_link(20, data, node_name, [name: node_name])
 end)
 
 node_list = Chief.get(MyChief)

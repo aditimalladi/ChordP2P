@@ -1,12 +1,12 @@
 defmodule Peer do
   use GenServer
 
-  def start_link(m, data, opts) do
-    GenServer.start_link(__MODULE__, [m, data], opts)
+  def start_link(m, data, node_name, opts) do
+    GenServer.start_link(__MODULE__, [m, data, node_name], opts)
   end
 
   def create(server) do
-    IO.puts "Create genServer"
+    IO.puts("Create genServer")
     GenServer.cast(server, {:create})
   end
 
@@ -60,24 +60,33 @@ defmodule Peer do
   def get_state(server) do
     GenServer.call(server, {:get_state})
   end
-  
-
 
   # state stores successor, predecessor, id = it's PID hash (it's identifier), finger table
   def init(args) do
-    [m, data] = args
-    id = Utils.hash_modulus(self())
+    [m, data, node_name] = args
+    id = Utils.hash_modulus(node_name)
     Chief.update_kash(MyChief, id, self())
     Chief.put(MyChief, id)
-    {:ok, %{:succ => nil, :pred => nil, :id => id, :finger_table => %{}, :m => m, :work => false, :next => 0, :data => data, :counter => 0}}
-  end
 
+    {:ok,
+     %{
+       :succ => nil,
+       :pred => nil,
+       :id => id,
+       :finger_table => %{},
+       :m => m,
+       :work => false,
+       :next => 0,
+       :data => data,
+       :counter => 0
+     }}
+  end
 
   # called for first node
   # sets the successor and predecessor as itself
   def handle_cast({:create}, state) do
     # IO.puts "Create first node HC"
-    state = Map.replace(state, :succ, state[:id]) 
+    state = Map.replace(state, :succ, state[:id])
     # state = Map.replace(state, :pred, state[:id]) 
     state = Map.replace(state, :work, true)
     allow_work()
@@ -110,29 +119,29 @@ defmodule Peer do
   # runs periodically
   # checks the peer's immediate 2^0, succ
   # tells the succ about the peer/ i.e itself
-  def handle_cast({:stabilize}, state) do
-    # IO.puts "Stabilize on #{state[:id]}"
-     if(state[:succ]!= state[:pred]) do
-       succ = state[:succ]
-       succ_pid = Chief.lookup(MyChief, succ)
-       x = Peer.get_predecessor(succ_pid)
-       b_og = state[:succ]
-       if(b_og != state[:id]) do
-        b_og_pid = Chief.lookup(MyChief, b_og)
-        b = Peer.get_predecessor(b_og_pid)
-        # IO.puts "Check range #{x} #{state[:id]} #{b}"
-        if Utils.real_deal_exclusion(x, state[:id], b) do
-          state = Map.replace(state, :succ, x)
-          x_pid = Chief.lookup(MyChief, x)
-          Peer.notify(x_pid, state[:id])
-          {:noreply, state}
-        end
-        Peer.notify(succ_pid, state[:id])
-        {:noreply, state}
-       end
-     end
-    {:noreply, state}
-  end
+  # def handle_cast({:stabilize}, state) do
+  #   # IO.puts "Stabilize on #{state[:id]}"
+  #    if(state[:succ]!= state[:pred]) do
+  #      succ = state[:succ]
+  #      succ_pid = Chief.lookup(MyChief, succ)
+  #      x = Peer.get_predecessor(succ_pid)
+  #      b_og = state[:succ]
+  #      if(b_og != state[:id]) do
+  #       b_og_pid = Chief.lookup(MyChief, b_og)
+  #       b = Peer.get_predecessor(b_og_pid)
+  #       # IO.puts "Check range #{x} #{state[:id]} #{b}"
+  #       if Utils.real_deal_exclusion(x, state[:id], b) do
+  #         state = Map.replace(state, :succ, x)
+  #         x_pid = Chief.lookup(MyChief, x)
+  #         Peer.notify(x_pid, state[:id])
+  #         {:noreply, state}
+  #       end
+  #       Peer.notify(succ_pid, state[:id])
+  #       {:noreply, state}
+  #      end
+  #    end
+  #   {:noreply, state}
+  # end
 
   # niotify is called periodically
   def handle_cast({:notify, peer_id}, state) do
@@ -150,6 +159,7 @@ defmodule Peer do
         {:noreply, state}
       end
     end
+
     {:noreply, state}
   end
 
@@ -164,14 +174,25 @@ defmodule Peer do
     if(next > 20) do
       # IO.puts "next #{next}"
       next = 1
-      temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, :math.pow(2, 20) |> trunc), state)
+
+      temp =
+        find_successorp(
+          rem((state[:id] + :math.pow(2, next - 1)) |> trunc, :math.pow(2, 20) |> trunc),
+          state
+        )
+
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
       :ets.insert(state[:data], {state[:id], state})
       {:noreply, state}
     else
-      temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, :math.pow(2, 20) |> trunc), state)
+      temp =
+        find_successorp(
+          rem((state[:id] + :math.pow(2, next - 1)) |> trunc, :math.pow(2, 20) |> trunc),
+          state
+        )
+
       # IO.puts "State id #{state[:id]} and the temp #{temp}"
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
@@ -179,7 +200,6 @@ defmodule Peer do
       :ets.insert(state[:data], {state[:id], state})
       {:noreply, state}
     end
-    
   end
 
   def handle_cast({:set_successor, succ}, state) do
@@ -196,8 +216,6 @@ defmodule Peer do
     :ets.insert(state[:data], {state[:id], state})
     {:noreply, state}
   end
-
-  
 
   def handle_call({:find_succ, peer_id}, _from, state) do
     # # IO.puts "FindSucc on #{state[:id]} with #{peer_id} HC"
@@ -240,11 +258,14 @@ defmodule Peer do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
     list_m = Enum.reverse(1..size)
-    finger_list = Enum.map(list_m, fn(i)->
-      if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
-        finger[i]
-      end
-    end)
+
+    finger_list =
+      Enum.map(list_m, fn i ->
+        if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
+          finger[i]
+        end
+      end)
+
     finger_list = Enum.uniq(finger_list)
     # here is what can be returned from the function
     if(finger_list == [nil]) do
@@ -277,7 +298,9 @@ defmodule Peer do
     # end
     task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
     # IO.inspect %{:process => self(), :node => state[:id], :task => task, :peer_id => peer_id}
-    res = Task.await(task, 10000)
+    # rand_number = :crypto.strong_rand_bytes(5) |> Base.url_encode64 |> binary_part(0, 5)
+    # IO.puts "Tasking #{rand_number}"
+    res = Task.await(task, :infinity)
     res
   end
 
@@ -285,11 +308,14 @@ defmodule Peer do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
     list_m = Enum.reverse(1..size)
-    finger_list = Enum.map(list_m, fn(i)->
-      if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
-        finger[i]
-      end
-    end)
+
+    finger_list =
+      Enum.map(list_m, fn i ->
+        if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
+          finger[i]
+        end
+      end)
+
     finger_list = Enum.uniq(finger_list)
     # here is what can be returned from the function
     if(finger_list == [nil]) do
@@ -307,6 +333,7 @@ defmodule Peer do
       # stabilize(self())
       update_fingers(self())
     end
+
     allow_work()
     {:noreply, state}
   end
@@ -325,11 +352,12 @@ defmodule Peer do
   # end
 
   defp allow_work() do
-    Process.send_after(self(), :work, 20000) # after 100 ms
+    # after 20000 ms
+    Process.send_after(self(), :work, 20000)
   end
 
   defp init_fingers() do
-    Enum.each(0..20, fn i -> 
+    Enum.each(0..20, fn i ->
       Process.send_after(self(), :work, 100)
     end)
   end
