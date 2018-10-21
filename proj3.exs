@@ -12,9 +12,7 @@ IO.inspect data = :ets.new(:data, [:set, :named_table, :public])
 Process.register chief_pid, MyChief
 
 Enum.each(0..numNodes-1, fn(i)->
-  {:ok, node_pid} = Peer.start_link(10, data, [])
-  Chief.update_kash(chief_pid, Utils.hash_modulus(node_pid), node_pid)
-  Chief.put(chief_pid, Utils.hash_modulus(node_pid))
+  {:ok, node_pid} = Peer.start_link(20, data, [])
 end)
 
 node_list = Chief.get(MyChief)
@@ -39,7 +37,17 @@ tail = Enum.fetch!(node_list, length(node_list)-1)
 Peer.set_successor(Chief.lookup(MyChief, tail), head)
 Peer.set_predecessor(Chief.lookup(MyChief, head), tail)
 
-:timer.sleep(3000)
+:timer.sleep(1000)
+
+
+# Enum.each(0..numNodes-1, fn(i)->
+#   IO.inspect i
+#   current_node = Enum.fetch!(node_list, i)
+#   [{_, state}] = :ets.lookup(data, current_node)
+#   if(state[:id] == state[:succ] || state[:id] == state[:pred]) do
+#     IO.inspect state
+#   end
+# end)
 
 # Enum.each(0..numNodes-1, fn(i)->
 #   current_node = Enum.fetch!(node_list, i)
@@ -47,16 +55,11 @@ Peer.set_predecessor(Chief.lookup(MyChief, head), tail)
 #   count = 0
 #   Enum.map(0..numReq-1, fn(j)->
 #     rand_node = Enum.random(node_excl_self)
-#     IO.inspect count = Utils.lookup_node(current_node, rand_node, 1)
+#     IO.inspect count = Utils.find_succ_acc(current_node, rand_node, data, 0)
 #   end)
 # end)
-
-# Enum.each(0..numNodes-1, fn(i)->
-    
-# end)
-
 
 IO.inspect count = Utils.find_succ_acc(head, tail, data, 0)
 
 
-:timer.sleep(10000000)
+#:timer.sleep(10000000)

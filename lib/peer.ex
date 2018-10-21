@@ -66,7 +66,10 @@ defmodule Peer do
   # state stores successor, predecessor, id = it's PID hash (it's identifier), finger table
   def init(args) do
     [m, data] = args
-    {:ok, %{:succ => nil, :pred => nil, :id => Utils.hash_modulus(self()), :finger_table => %{}, :m => m, :work => false, :next => 0, :data => data}}
+    id = Utils.hash_modulus(self())
+    Chief.update_kash(MyChief, id, self())
+    Chief.put(MyChief, id)
+    {:ok, %{:succ => nil, :pred => nil, :id => id, :finger_table => %{}, :m => m, :work => false, :next => 0, :data => data, :counter => 0}}
   end
 
 
@@ -78,6 +81,7 @@ defmodule Peer do
     # state = Map.replace(state, :pred, state[:id]) 
     state = Map.replace(state, :work, true)
     allow_work()
+    init_fingers()
     :ets.insert(state[:data], {state[:id], state})
     {:noreply, state}
   end
@@ -99,6 +103,7 @@ defmodule Peer do
 
     :ets.insert(state[:data], {state[:id], state})
     allow_work()
+    init_fingers()
     {:noreply, state}
   end
 
@@ -156,17 +161,17 @@ defmodule Peer do
     finger = state[:finger_table]
     next = next + 1
     # IO.puts "next outside #{next}"
-    if(next > 10) do
+    if(next > 20) do
       # IO.puts "next #{next}"
       next = 1
-      temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, 1024), state)
+      temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, :math.pow(2, 20) |> trunc), state)
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
       :ets.insert(state[:data], {state[:id], state})
       {:noreply, state}
     else
-      temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, 1024), state)
+      temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, :math.pow(2, 20) |> trunc), state)
       # IO.puts "State id #{state[:id]} and the temp #{temp}"
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
@@ -216,7 +221,8 @@ defmodule Peer do
     #   end
     # end
     task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
-    res = Task.await(task)
+    # IO.inspect %{:process => self(), :node => state[:id], :task => task, :peer_id => peer_id}
+    res = Task.await(task, 10000)
     {:reply, res, state}
   end
 
@@ -270,7 +276,8 @@ defmodule Peer do
     #   end
     # end
     task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
-    res = Task.await(task)
+    # IO.inspect %{:process => self(), :node => state[:id], :task => task, :peer_id => peer_id}
+    res = Task.await(task, 10000)
     res
   end
 
@@ -304,9 +311,26 @@ defmodule Peer do
     {:noreply, state}
   end
 
+  # periodically calling stabilize and fix_fingers
+  # def handle_info(:init_fingers, state) do
+  #   if(state[:counter] < 21) do
+  #     # IO.puts "Stabilize and fix fingers"
+  #     # stabilize(self())
+  #     update_fingers(self())
+  #     state = Map.replace(state, :counter, state[:counter] + 1)
+  #     init_fingers()
+  #     {:noreply, state}
+  #   end
+  #   {:noreply, state}
+  # end
+
   defp allow_work() do
-    Process.send_after(self(), :work, 500) # after 100 ms
+    Process.send_after(self(), :work, 20000) # after 100 ms
   end
 
-
+  defp init_fingers() do
+    Enum.each(0..20, fn i -> 
+      Process.send_after(self(), :work, 100)
+    end)
+  end
 end

@@ -1,11 +1,13 @@
 defmodule Utils do
   # node's pid is passed and then converted to a string
-  # that string is then hashed using SHA-1 ans trucated to 2^10 bits
+  # that string is then hashed using SHA-1 ans trucated to 2^20 bits
   def hash_modulus(node_pid) do
     str_num = :erlang.pid_to_list(node_pid)
+    rand_string = :crypto.strong_rand_bytes(20) |> Base.url_encode64 |> binary_part(0, 20)
+    str_num = to_string(str_num) <> rand_string
     num = :crypto.hash(:sha, str_num) |> Base.encode16
     {int_num, _} = Integer.parse(num, 16)
-    rem(int_num, :math.pow(2,10) |> trunc)
+    rem(int_num, :math.pow(2,20) |> trunc)
   end
 
   # for when a == self()
@@ -131,7 +133,7 @@ defmodule Utils do
           # split into 2 parts 
           # last_index = length(node_list) - 1
           # last_ele = Enum.fetch!(node_list, last_index)
-          x in 0..b || x in a+1..(:math.pow(2, 10) |> trunc)
+          x in 0..b || x in a+1..(:math.pow(2, 20) |> trunc)
       end
   end
 
@@ -154,7 +156,7 @@ defmodule Utils do
           # split into 2 parts 
           last_index = length(node_list) - 1
           # last_ele = Enum.fetch!(node_list, last_index)
-          x in 0..b-1 || x in a+1..(:math.pow(2, 10) |> trunc)
+          x in 0..b-1 || x in a+1..(:math.pow(2, 20) |> trunc)
     end
   end
 
