@@ -240,7 +240,7 @@ defmodule Peer do
     # end
     task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
     # IO.inspect %{:process => self(), :node => state[:id], :task => task, :peer_id => peer_id}
-    res = Task.await(task, 10000)
+    res = Task.await(task, :infinity)
     {:reply, res, state}
   end
 

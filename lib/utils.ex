@@ -2,13 +2,21 @@ defmodule Utils do
   # node's pid is passed and then converted to a string
   # that string is then hashed using SHA-1 ans trucated to 2^20 bits
   def hash_modulus(node_name) do
-    # str_num = :erlang.pid_to_list(node_pid)
-    # rand_string = :crypto.strong_rand_bytes(20) |> Base.url_encode64 |> binary_part(0, 20)
-    # str_num = to_string(str_num) <> rand_string
     str_num = Atom.to_string(node_name)
-    num = :crypto.hash(:sha, str_num) |> Base.encode16()
+    num = :crypto.hash(:sha, str_num) |> Base.encode16
     {int_num, _} = Integer.parse(num, 16)
-    rem(int_num, :math.pow(2, 20) |> trunc)
+    id = rem(int_num, :math.pow(2,20) |> trunc)
+    check_id(id)
+  end
+
+  def check_id(id) do
+    node_list = Chief.get(MyChief)
+    if (id in node_list) do
+      id = id + :rand.uniform(100)
+      check_id(id)
+    else
+      id
+    end
   end
 
   # for when a == self()
