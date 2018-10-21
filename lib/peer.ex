@@ -1,8 +1,8 @@
 defmodule Peer do
   use GenServer
 
-  def start_link(m, opts) do
-    GenServer.start_link(__MODULE__, m, opts)
+  def start_link(m, data, opts) do
+    GenServer.start_link(__MODULE__, [m, data], opts)
   end
 
   def create(server) do
@@ -64,8 +64,9 @@ defmodule Peer do
 
 
   # state stores successor, predecessor, id = it's PID hash (it's identifier), finger table
-  def init(m) do
-    {:ok, %{:succ => nil, :pred => nil, :id => Utils.hash_modulus(self()), :finger_table => %{}, :m => m, :work => false, :next => 0}}
+  def init(args) do
+    [m, data] = args
+    {:ok, %{:succ => nil, :pred => nil, :id => Utils.hash_modulus(self()), :finger_table => %{}, :m => m, :work => false, :next => 0, :data => data}}
   end
 
 
@@ -77,6 +78,7 @@ defmodule Peer do
     # state = Map.replace(state, :pred, state[:id]) 
     state = Map.replace(state, :work, true)
     allow_work()
+    :ets.insert(state[:data], {state[:id], state})
     {:noreply, state}
   end
 
@@ -94,6 +96,8 @@ defmodule Peer do
     state = Map.replace(state, :pred, pred)
     state = Map.replace(state, :work, true)
     set_successor(old_peer_pid, state[:id])
+
+    :ets.insert(state[:data], {state[:id], state})
     allow_work()
     {:noreply, state}
   end
@@ -159,6 +163,7 @@ defmodule Peer do
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
+      :ets.insert(state[:data], {state[:id], state})
       {:noreply, state}
     else
       temp = find_successorp(rem(state[:id] + :math.pow(2, next - 1) |> trunc, 1024), state)
@@ -166,6 +171,7 @@ defmodule Peer do
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
+      :ets.insert(state[:data], {state[:id], state})
       {:noreply, state}
     end
     
@@ -176,37 +182,42 @@ defmodule Peer do
     # finger = state[:finger_table]
     # finger = Map.put(finger, 0, succ)
     # state = Map.replace(state, :finger_table, finger)
+    :ets.insert(state[:data], {state[:id], state})
     {:noreply, state}
   end
 
   def handle_cast({:set_predecessor, pred}, state) do
     state = Map.replace(state, :pred, pred)
+    :ets.insert(state[:data], {state[:id], state})
     {:noreply, state}
   end
 
   
 
   def handle_call({:find_succ, peer_id}, _from, state) do
-    # IO.puts "FindSucc on #{state[:id]} with #{peer_id} HC"
-    if (state[:id] == state[:succ]) do
-      {:reply, state[:succ], state}
-    else
-      if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
-        # IO.puts "GenServer INCLUSION of UTILS"
-        {:reply, state[:succ], state}
-      else
-        peer_pid = Chief.lookup(MyChief, peer_id)
-        n_dash = closet_preceding_nodep(peer_id, state)
-        if(n_dash == state[:id]) do
-          k = find_successorp(peer_id, state)
-          {:reply, k, state}
-        else
-          n_dash_pid = Chief.lookup(MyChief, n_dash)
-          k = find_succ(n_dash_pid, peer_id)
-          {:reply, k, state}
-        end
-      end
-    end
+    # # IO.puts "FindSucc on #{state[:id]} with #{peer_id} HC"
+    # if (state[:id] == state[:succ]) do
+    #   {:reply, state[:succ], state}
+    # else
+    #   if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
+    #     # IO.puts "GenServer INCLUSION of UTILS"
+    #     {:reply, state[:succ], state}
+    #   else
+    #     peer_pid = Chief.lookup(MyChief, peer_id)
+    #     n_dash = closet_preceding_nodep(peer_id, state)
+    #     if(n_dash == state[:id]) do
+    #       k = find_successorp(peer_id, state)
+    #       {:reply, k, state}
+    #     else
+    #       n_dash_pid = Chief.lookup(MyChief, n_dash)
+    #       k = find_succ(n_dash_pid, peer_id)
+    #       {:reply, k, state}
+    #     end
+    #   end
+    # end
+    task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
+    res = Task.await(task)
+    {:reply, res, state}
   end
 
   def handle_call({:get_predecessor}, _from, state) do
@@ -246,18 +257,21 @@ defmodule Peer do
   defp find_successorp(peer_id, state) do
     # IO.puts "find_successorp"
     # IO.inspect state
-    if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
-      # IO.puts "FIND SUCC INSIDE UTILS"
-      state[:succ]
-    else
-      n_dash = closet_preceding_nodep(peer_id, state)
-      n_dash_pid = Chief.lookup(MyChief, n_dash)
-      if(n_dash == state[:id]) do
-        find_successorp(peer_id, state)
-      else
-        find_succ(n_dash_pid, peer_id)
-      end
-    end
+    # if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
+    #   # IO.puts "FIND SUCC INSIDE UTILS"
+    #   state[:succ]
+    # else
+    #   n_dash = closet_preceding_nodep(peer_id, state)
+    #   n_dash_pid = Chief.lookup(MyChief, n_dash)
+    #   if(n_dash == state[:id]) do
+    #     find_successorp(peer_id, state)
+    #   else
+    #     find_succ(n_dash_pid, peer_id)
+    #   end
+    # end
+    task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
+    res = Task.await(task)
+    res
   end
 
   def closet_preceding_nodep(peer_id, state) do
@@ -291,7 +305,7 @@ defmodule Peer do
   end
 
   defp allow_work() do
-    Process.send_after(self(), :work, 100) # after 100 ms
+    Process.send_after(self(), :work, 500) # after 100 ms
   end
 
 

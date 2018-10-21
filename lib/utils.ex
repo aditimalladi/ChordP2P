@@ -158,4 +158,59 @@ defmodule Utils do
     end
   end
 
+  def find_succ(n, id, data) do
+    [{_, state}] = :ets.lookup(data, n)
+    if(Utils.real_succ_incl(id, state[:id], state[:succ])) do
+      state[:succ]
+    else
+      n_dash = closet_preceding_node(id, state)
+      find_succ(n_dash, id, data)
+    end
+  end
+
+  def find_succ_acc(n, id, data, acc) do
+    [{_, state}] = :ets.lookup(data, n)
+    if(Utils.real_succ_incl(id, state[:id], state[:succ])) do
+      acc
+    else
+      n_dash = closet_preceding_node(id, state)
+      find_succ_acc(n_dash, id, data, acc+1)
+    end
+  end
+
+  def closet_preceding_node(id, state) do
+    finger = state[:finger_table]
+    size = Enum.count(Map.keys(finger))
+    list_m = Enum.reverse(1..size)
+    finger_list = Enum.map(list_m, fn(i)->
+      if(Utils.real_succ_excl(finger[i], state[:id], id)) do
+        finger[i]
+      end
+    end)
+    finger_list = Enum.uniq(finger_list)
+    # here is what can be returned from the function
+    if(finger_list == [nil]) do
+      state[:id]
+    else
+      finger_list = finger_list -- [nil]
+      Enum.fetch!(finger_list, 0)
+    end
+  end
+
+  def lookup_node(source, dest, accumulator) do
+    IO.puts "AC source #{source}"
+    IO.puts "AC dest #{dest}"
+    node_list = Chief.get(MyChief)
+    source_pid = Chief.lookup(MyChief, source)
+    succ = Peer.find_succ(source_pid, dest)
+    IO.puts "AC succ #{succ}"
+    if(succ == dest) do
+      IO.puts "Match"
+      accumulator
+    else
+      IO.puts "Again"
+      lookup_node(succ, dest, accumulator + 1)
+    end
+  end
+  
 end
