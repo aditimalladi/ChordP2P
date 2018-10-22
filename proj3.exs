@@ -57,22 +57,22 @@ end)
 # :ets.insert(data, {:count, 0})
 
 
-# Enum.each(0..numNodes-1, fn(i)->
-#   current_node = Enum.fetch!(node_list, i)
-#   node_excl_self = node_list -- [current_node]
-#   count = 0
-#   Enum.map(0..numReq-1, fn(j)->
-#     rand_node = Enum.random(node_excl_self)
-#     [{_, count}] = :ets.lookup(data, :count)
-#     res = Utils.find_succ_acc(current_node, rand_node, data, 0)
-#     :ets.insert(data, {:count, count+res})
-#   end)
-# end)
+Enum.each(0..numNodes-1, fn(i)->
+  current_node = Enum.fetch!(node_list, i)
+  node_excl_self = node_list -- [current_node]
+  count = 0
+  Enum.map(0..numReq-1, fn(j)->
+    rand_node = Enum.random(node_excl_self)
+    [{_, count}] = :ets.lookup(data, :count)
+    res = Utils.find_succ_acc(current_node, rand_node, data, 0)
+    :ets.insert(data, {:count, count+res})
+  end)
+end)
 
-# [{_, count}] = :ets.lookup(data, :count)
-# IO.puts "Average hops: #{(count/(numNodes*numReq))}"
+[{_, count}] = :ets.lookup(data, :count)
+IO.puts "Average hops: #{(count/(numNodes*numReq))}"
 
 
 # :timer.sleep(10000000)
 
-IO.inspect count = Utils.find_succ_acc(head, tail, data, 0)
+# IO.inspect count = Utils.find_succ_acc(head, tail, data, 0)
