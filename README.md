@@ -18,10 +18,18 @@ We have implemented the chord protocol as described in the paper. Periodically r
 ```
 $ mix run proj3.exs 1000 10
 ```
+#### Results
+Result for running 1000 nodes with 10 requests each, gave us an average hop count of 4.8444
 
-## Results
+## Running the code for Bonus question
+```
+$ mix run proj3_bonus.exs 100 2 0.1
+```
+#### Results
+Result for running 100 nodes with 2 requests each, and killing 10% of the nodes gave us an average hop count of 6.01
+
 ## Largest Problem Solved
-The largest network we ran was for 10,000 nodes for 2 requests each.
+The largest network we ran was for 10,000 nodes for 2 requests each, giving us a average hop count of 
 
 
 ## Authors
