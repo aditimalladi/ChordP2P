@@ -30,6 +30,7 @@ defmodule Chief do
     GenServer.call(server, {:get_succ, node})
   end
 
+  # deleting an existing node
   def delete(server, node) do
     GenServer.cast(server, {:delete, node})
   end
@@ -63,8 +64,6 @@ defmodule Chief do
     {:noreply, state}
   end
 
-  
-
   def handle_call({:get}, _from, state) do
     {:reply, state[:node_list], state}
   end
@@ -75,7 +74,7 @@ defmodule Chief do
 
   def handle_call({:get_succ, node}, _from, state) do
     node_list = state[:node_list]
-    node_i = Enum.find_index(node_list, fn i -> i==node end)
+    IO.inspect node_i = Enum.find_index(node_list, fn i -> i==node end)
     {:reply, Enum.fetch!(node_list, node_i+1), state}
   end
 end

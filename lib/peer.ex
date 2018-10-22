@@ -5,69 +5,69 @@ defmodule Peer do
     GenServer.start_link(__MODULE__, [m, data, node_name], opts)
   end
 
+  # creating a new chord network
   def create(server) do
-    IO.puts("Create genServer")
     GenServer.cast(server, {:create})
   end
 
-  # new node will call join on existing peer/node on the network
   # old_peer is a peer/node that already exists on the chord network
   def join(server, old_peer) do
-    # IO.puts "Join with #{old_peer}"
     GenServer.cast(server, {:join, old_peer})
   end
 
   def stabilize(server) do
-    # IO.puts "Stabilize"
     GenServer.cast(server, {:stabilize})
   end
 
   def notify(server, peer_id) do
-    # IO.puts "Notify"
     GenServer.cast(server, {:notify, peer_id})
   end
 
-  def update_fingers(server) do
-    # IO.puts "FixFingers"
-    GenServer.cast(server, {:update_fingers})
+  def fix_fingers(server) do
+    GenServer.cast(server, {:fix_fingers})
   end
 
+  # returns the successor of peer_id
   def find_succ(server, peer_id) do
-    # IO.puts "FindSucc of #{peer_id}"
     GenServer.call(server, {:find_succ, peer_id})
   end
 
+  # returns current node's predecessor
   def get_predecessor(server) do
     GenServer.call(server, {:get_predecessor})
   end
 
+  # returns current node's successor
   def get_successor(server) do
     GenServer.call(server, {:get_successor})
   end
 
+  # sets the current GenServer's successor as succ
   def set_successor(server, succ) do
     GenServer.cast(server, {:set_successor, succ})
   end
 
+  # sets the current GenServer's predecessor as succ
   def set_predecessor(server, pred) do
     GenServer.cast(server, {:set_predecessor, pred})
   end
 
-  def closet_preceding_node(server, peer_id) do
-    GenServer.call(server, {:closet_preceding_node, peer_id})
+  # returns the closest preceding node
+  def closest_preceding_node(server, peer_id) do
+    GenServer.call(server, {:closest_preceding_node, peer_id})
   end
 
+  # returns the state of the current GenServer
   def get_state(server) do
     GenServer.call(server, {:get_state})
   end
 
-  # state stores successor, predecessor, id = it's PID hash (it's identifier), finger table
   def init(args) do
     [m, data, node_name] = args
     id = Utils.hash_modulus(node_name)
     Chief.update_kash(MyChief, id, self())
     Chief.put(MyChief, id)
-
+    # state of each node
     {:ok,
      %{
        :succ => nil,
@@ -85,9 +85,7 @@ defmodule Peer do
   # called for first node
   # sets the successor and predecessor as itself
   def handle_cast({:create}, state) do
-    # IO.puts "Create first node HC"
     state = Map.replace(state, :succ, state[:id])
-    # state = Map.replace(state, :pred, state[:id]) 
     state = Map.replace(state, :work, true)
     allow_work()
     init_fingers()
@@ -97,19 +95,11 @@ defmodule Peer do
 
   # new node asks old_peer to find it's(new node's) successor
   def handle_cast({:join, old_peer}, state) do
-    # IO.puts "Join #{state[:id]} with #{old_peer} HC"
-    # state = Map.replace(state, :pred, nil)
     old_peer_pid = Chief.lookup(MyChief, old_peer)
-    # state[:id] of the new node is sent
-    # IO.puts "I'm here now"
-    # IO.inspect old_peer_pid
-    # IO.inspect old_peer
-    # succ = Peer.find_succ(old_peer_pid, state[:id])
     pred = old_peer
     state = Map.replace(state, :pred, pred)
     state = Map.replace(state, :work, true)
     set_successor(old_peer_pid, state[:id])
-
     :ets.insert(state[:data], {state[:id], state})
     allow_work()
     init_fingers()
@@ -121,25 +111,21 @@ defmodule Peer do
   # tells the succ about the peer/ i.e itself
   def handle_cast({:stabilize}, state) do
     succ_exists = Chief.lookup(MyChief, state[:succ])
-    # IO.inspect succ_exists
     if(succ_exists == nil) do
-      IO.puts "No succ"
       new_succ = Chief.get_succ(MyChief, state[:id])
       state = Map.replace(state, :succ, new_succ)
+      new_succ_pid = Chief.lookup(MyChief, new_succ)
+      Peer.set_predecessor(new_succ_pid, state[:id])
       :ets.insert(state[:data], {state[:id], state})
-      # IO.puts "Stabilize on #{state[:id]}"
       if(state[:succ]!= state[:pred]) do
         succ = state[:succ]
         [{_, succ_state}] = :ets.lookup(state[:data], succ)
         x = succ_state[:pred]
         b_og = state[:succ]
         if(b_og != state[:id]) do
-          # b_og_pid = Chief.lookup(MyChief, b_og)
           [{_, b_state}] = :ets.lookup(state[:data], succ)
-          # b = Peer.get_predecessor(b_og_pid)
           b = b_state[:pred]
-          # IO.puts "Check range #{x} #{state[:id]} #{b}"
-          if Utils.real_deal_exclusion(x, state[:id], b) do
+          if Utils.check_range_excl(x, state[:id], b) do
             state = Map.replace(state, :succ, x)
             x_pid = Chief.lookup(MyChief, x)
             Peer.notify(x_pid, state[:id])
@@ -155,19 +141,15 @@ defmodule Peer do
       :ets.insert(state[:data], {state[:id], state})
       {:noreply, state}
     else
-      # IO.puts "Stabilize on #{state[:id]}"
       if(state[:succ]!= state[:pred]) do
         succ = state[:succ]
         [{_, succ_state}] = :ets.lookup(state[:data], succ)
         x = succ_state[:pred]
         b_og = state[:succ]
         if(b_og != state[:id]) do
-          # b_og_pid = Chief.lookup(MyChief, b_og)
           [{_, b_state}] = :ets.lookup(state[:data], succ)
-          # b = Peer.get_predecessor(b_og_pid)
           b = b_state[:pred]
-          # IO.puts "Check range #{x} #{state[:id]} #{b}"
-          if Utils.real_deal_exclusion(x, state[:id], b) do
+          if Utils.check_range_excl(x, state[:id], b) do
             state = Map.replace(state, :succ, x)
             x_pid = Chief.lookup(MyChief, x)
             Peer.notify(x_pid, state[:id])
@@ -185,19 +167,17 @@ defmodule Peer do
     end
   end
 
-  # niotify is called periodically
+  # notify is called periodically
   def handle_cast({:notify, peer_id}, state) do
     pred = state[:pred]
-    # IO.puts "Check range NOTIFY #{peer_id} #{pred} #{state[:id]}"
     if(pred == state[:id]) do
-      if(pred == nil || Utils.real_deal_exclusion(peer_id, pred, state[:id])) do
+      if(pred == nil || Utils.check_range_excl(peer_id, pred, state[:id])) do
         state = Map.replace(state, :pred, peer_id)
         :ets.insert(state[:data], {state[:id], state})
         {:noreply, state}
       end
     else
-      # IO.puts "Check range not self NOTIFY #{peer_id} #{pred} #{state[:id]}"
-      if(pred == nil || Utils.real_deal_exclusion(peer_id, pred, state[:id])) do
+      if(pred == nil || Utils.check_range_excl(peer_id, pred, state[:id])) do
         state = Map.replace(state, :pred, peer_id)
         :ets.insert(state[:data], {state[:id], state})
         {:noreply, state}
@@ -207,37 +187,22 @@ defmodule Peer do
     {:noreply, state}
   end
 
-  # m here is defined here as 10!!!!! NOT DYNAMIC
-  def handle_cast({:update_fingers}, state) do
-    # IO.puts "IN UPDATE_FINGERS #{state[:id]}"
-    # IO.inspect state
+  def handle_cast({:fix_fingers}, state) do
     next = state[:next]
     finger = state[:finger_table]
     next = next + 1
-    # IO.puts "next outside #{next}"
     if(next > 20) do
-      # IO.puts "next #{next}"
       next = 1
-
-      temp =
-        find_successorp(
-          rem((state[:id] + :math.pow(2, next - 1)) |> trunc, :math.pow(2, 20) |> trunc),
-          state
-        )
-
+      temp = find_successorp(rem((state[:id] + :math.pow(2, next - 1)) |> trunc, :math.pow(2, 20) |> trunc),
+          state)
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
       :ets.insert(state[:data], {state[:id], state})
       {:noreply, state}
     else
-      temp =
-        find_successorp(
-          rem((state[:id] + :math.pow(2, next - 1)) |> trunc, :math.pow(2, 20) |> trunc),
-          state
-        )
-
-      # IO.puts "State id #{state[:id]} and the temp #{temp}"
+      temp = find_successorp(rem((state[:id] + :math.pow(2, next - 1)) |> trunc, :math.pow(2, 20) |> trunc),
+          state)
       finger = Map.put(finger, next, temp)
       state = Map.replace(state, :finger_table, finger)
       state = Map.replace(state, :next, next)
@@ -248,9 +213,6 @@ defmodule Peer do
 
   def handle_cast({:set_successor, succ}, state) do
     state = Map.replace(state, :succ, succ)
-    # finger = state[:finger_table]
-    # finger = Map.put(finger, 0, succ)
-    # state = Map.replace(state, :finger_table, finger)
     :ets.insert(state[:data], {state[:id], state})
     {:noreply, state}
   end
@@ -262,56 +224,31 @@ defmodule Peer do
   end
 
   def handle_call({:find_succ, peer_id}, _from, state) do
-    # # IO.puts "FindSucc on #{state[:id]} with #{peer_id} HC"
-    # if (state[:id] == state[:succ]) do
-    #   {:reply, state[:succ], state}
-    # else
-    #   if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
-    #     # IO.puts "GenServer INCLUSION of UTILS"
-    #     {:reply, state[:succ], state}
-    #   else
-    #     peer_pid = Chief.lookup(MyChief, peer_id)
-    #     n_dash = closet_preceding_nodep(peer_id, state)
-    #     if(n_dash == state[:id]) do
-    #       k = find_successorp(peer_id, state)
-    #       {:reply, k, state}
-    #     else
-    #       n_dash_pid = Chief.lookup(MyChief, n_dash)
-    #       k = find_succ(n_dash_pid, peer_id)
-    #       {:reply, k, state}
-    #     end
-    #   end
-    # end
     task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
-    # IO.inspect %{:process => self(), :node => state[:id], :task => task, :peer_id => peer_id}
     res = Task.await(task, :infinity)
     {:reply, res, state}
   end
 
   def handle_call({:get_predecessor}, _from, state) do
-    # IO.puts "get_predecessor"
     {:reply, state[:pred], state}
   end
 
   def handle_call({:get_successor}, _from, state) do
-    # IO.puts "get_successor"
     {:reply, state[:succ], state}
   end
 
-  def handle_call({:closet_preceding_node, peer_id}, _from, state) do
+  def handle_call({:closest_preceding_node, peer_id}, _from, state) do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
     list_m = Enum.reverse(1..size)
-
     finger_list =
       Enum.map(list_m, fn i ->
-        if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
+        if(Utils.key_in_range_excl(finger[i], state[:id], peer_id)) do
           finger[i]
         end
       end)
 
     finger_list = Enum.uniq(finger_list)
-    # here is what can be returned from the function
     if(finger_list == [nil]) do
       state[:id]
     else
@@ -321,47 +258,28 @@ defmodule Peer do
   end
 
   def handle_call({:get_state}, _from, state) do
-    # IO.puts "Get state"
     {:reply, state, state}
   end
 
   defp find_successorp(peer_id, state) do
-    # IO.puts "find_successorp"
-    # IO.inspect state
-    # if(Utils.real_succ_incl(peer_id, state[:id], state[:succ])) do
-    #   # IO.puts "FIND SUCC INSIDE UTILS"
-    #   state[:succ]
-    # else
-    #   n_dash = closet_preceding_nodep(peer_id, state)
-    #   n_dash_pid = Chief.lookup(MyChief, n_dash)
-    #   if(n_dash == state[:id]) do
-    #     find_successorp(peer_id, state)
-    #   else
-    #     find_succ(n_dash_pid, peer_id)
-    #   end
-    # end
+    # spawning a task to find the successor of the current GenServer, i.e, self()
     task = Task.async(Utils, :find_succ, [state[:id], peer_id, state[:data]])
-    # IO.inspect %{:process => self(), :node => state[:id], :task => task, :peer_id => peer_id}
-    # rand_number = :crypto.strong_rand_bytes(5) |> Base.url_encode64 |> binary_part(0, 5)
-    # IO.puts "Tasking #{rand_number}"
     res = Task.await(task, :infinity)
     res
   end
 
-  def closet_preceding_nodep(peer_id, state) do
+  def closest_preceding_nodep(peer_id, state) do
     finger = state[:finger_table]
     size = Enum.count(Map.keys(finger))
     list_m = Enum.reverse(1..size)
-
     finger_list =
       Enum.map(list_m, fn i ->
-        if(Utils.real_succ_excl(finger[i], state[:id], peer_id)) do
+        if(Utils.key_in_range_excl(finger[i], state[:id], peer_id)) do
           finger[i]
         end
       end)
-
+    # ensuring no repeated elements in the list
     finger_list = Enum.uniq(finger_list)
-    # here is what can be returned from the function
     if(finger_list == [nil]) do
       state[:id]
     else
@@ -373,44 +291,24 @@ defmodule Peer do
   # periodically calling stabilize and fix_fingers
   def handle_info(:work, state) do
     if(state[:work] == true) do
-      # IO.puts "Stabilize and fix fingers"
-      update_fingers(self())
-      # :timer.sleep(1000)
+      fix_fingers(self())
       stabilize(self())
     end
-
     allow_work()
     {:noreply, state}
   end
 
-  # periodically calling stabilize and fix_fingers
+  # periodically calling fix_fingers to populate the finger table initially
   def handle_info(:work_x, state) do
     if(state[:work] == true) do
-      # IO.puts "Stabilize and fix fingers"
-      update_fingers(self())
-      # :timer.sleep(1000)
-      # stabilize(self())
+      fix_fingers(self())
     end
 
     allow_work()
     {:noreply, state}
   end
 
-  # periodically calling stabilize and fix_fingers
-  # def handle_info(:init_fingers, state) do
-  #   if(state[:counter] < 21) do
-  #     # IO.puts "Stabilize and fix fingers"
-  #     # stabilize(self())
-  #     update_fingers(self())
-  #     state = Map.replace(state, :counter, state[:counter] + 1)
-  #     init_fingers()
-  #     {:noreply, state}
-  #   end
-  #   {:noreply, state}
-  # end
-
   defp allow_work() do
-    # after 20000 ms
     Process.send_after(self(), :work, 100)
   end
 
