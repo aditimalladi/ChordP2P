@@ -29,7 +29,7 @@ $ mix run proj3_bonus.exs 100 2 0.1
 Result for running 100 nodes with 2 requests each, and killing 10% of the nodes gave us an average hop count of 6.01
 
 ## Largest Problem Solved
-The largest network we ran was for 10,000 nodes for 2 requests each, giving us a average hop count of 
+The largest network we ran was for 10,000 nodes for 2 requests each, giving us a average hop count of 5.9844
 
 
 ## Authors
