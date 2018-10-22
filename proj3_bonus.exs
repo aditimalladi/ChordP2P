@@ -1,8 +1,10 @@
 # :observer.start()
-[numNodes, numReq, numDead] = System.argv
+[numNodes, numReq, killRatio] = System.argv
 {numNodes, _} = Integer.parse(numNodes)
 {numReq, _} = Integer.parse(numReq)
-{numDead, _} = Integer.parse(numDead)
+{killRatio, _} = Float.parse(killRatio)
+
+numDead = killRatio * numNodes |> trunc
 
 # ets table
 data = :ets.new(:data, [:set, :named_table, :public])
@@ -56,7 +58,7 @@ IO.puts "Average hops: #{(count/(numNodes*numReq))}"
 # picking and killing randomly selected nodes
 killed_nodes = Enum.map(0..numDead-1, fn(j)->
   k = Enum.random(node_list)
-  IO.puts "Killing #{k}"
+  IO.puts "Killing node with id #{k}"
   Chief.delete(MyChief, k)
   k
 end)
