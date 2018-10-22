@@ -1,21 +1,21 @@
 # ChordP2P
 
-**TODO: Add description**
+We have implemented the chord protocol, which is a distributed lookup protocol that addresses the problem of determining the location of a node that stores a desired data item efficiently. 
+Given a key, Chord maps the key onto a node. Data location can be easily implemented on top of Chord by associating a key with each data item, and storing the key/data pair at the node to which the key maps.
+Chord adapts efficiently as nodes join and leave the system, and can answer queries even if the system is continuously changing. 
 
-## Installation
+## Getting Started
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `chordp2p` to your list of dependencies in `mix.exs`:
+**Input :** Two parameters are inputted, `numNodes` which is the number of nodes in the network and `numReqs`, which is the number if requests each node should making
 
-```elixir
-def deps do
-  [
-    {:chordp2p, "~> 0.1.0"}
-  ]
-end
+**Output :** After setting up the n/w each node makes `numReqs` number of requests and the number of hops for each of these is calculated and the average is calculated
+
+
+## Running the code
+```
+$ mix run proj1.exs 1000 10
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/chordp2p](https://hexdocs.pm/chordp2p).
+## What is working
 
+We have implemented the chord protocol as described in the paper. Periodically running fix_fingers and stabilize to ensure that the values stored in the DHT is accurate and also so it is resilient to failures.
