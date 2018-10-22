@@ -19,3 +19,12 @@ $ mix run proj1.exs 1000 10
 ## What is working
 
 We have implemented the chord protocol as described in the paper. Periodically running fix_fingers and stabilize to ensure that the values stored in the DHT is accurate and also so it is resilient to failures.
+
+## Largest Problem Solved
+The largest network we ran was for 10,000 nodes for 2 requests each.
+
+
+## Authors
+
+* **Aditi Malladi UFID: 9828-6321**
+* **Suraj Kumar Reddy Thanugundla UFID: 3100-9916**
