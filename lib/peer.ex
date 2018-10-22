@@ -119,29 +119,71 @@ defmodule Peer do
   # runs periodically
   # checks the peer's immediate 2^0, succ
   # tells the succ about the peer/ i.e itself
-  # def handle_cast({:stabilize}, state) do
-  #   # IO.puts "Stabilize on #{state[:id]}"
-  #    if(state[:succ]!= state[:pred]) do
-  #      succ = state[:succ]
-  #      succ_pid = Chief.lookup(MyChief, succ)
-  #      x = Peer.get_predecessor(succ_pid)
-  #      b_og = state[:succ]
-  #      if(b_og != state[:id]) do
-  #       b_og_pid = Chief.lookup(MyChief, b_og)
-  #       b = Peer.get_predecessor(b_og_pid)
-  #       # IO.puts "Check range #{x} #{state[:id]} #{b}"
-  #       if Utils.real_deal_exclusion(x, state[:id], b) do
-  #         state = Map.replace(state, :succ, x)
-  #         x_pid = Chief.lookup(MyChief, x)
-  #         Peer.notify(x_pid, state[:id])
-  #         {:noreply, state}
-  #       end
-  #       Peer.notify(succ_pid, state[:id])
-  #       {:noreply, state}
-  #      end
-  #    end
-  #   {:noreply, state}
-  # end
+  def handle_cast({:stabilize}, state) do
+    succ_exists = Chief.lookup(MyChief, state[:succ])
+    # IO.inspect succ_exists
+    if(succ_exists == nil) do
+      IO.puts "No succ"
+      new_succ = Chief.get_succ(MyChief, state[:id])
+      state = Map.replace(state, :succ, new_succ)
+      :ets.insert(state[:data], {state[:id], state})
+      # IO.puts "Stabilize on #{state[:id]}"
+      if(state[:succ]!= state[:pred]) do
+        succ = state[:succ]
+        [{_, succ_state}] = :ets.lookup(state[:data], succ)
+        x = succ_state[:pred]
+        b_og = state[:succ]
+        if(b_og != state[:id]) do
+          # b_og_pid = Chief.lookup(MyChief, b_og)
+          [{_, b_state}] = :ets.lookup(state[:data], succ)
+          # b = Peer.get_predecessor(b_og_pid)
+          b = b_state[:pred]
+          # IO.puts "Check range #{x} #{state[:id]} #{b}"
+          if Utils.real_deal_exclusion(x, state[:id], b) do
+            state = Map.replace(state, :succ, x)
+            x_pid = Chief.lookup(MyChief, x)
+            Peer.notify(x_pid, state[:id])
+            :ets.insert(state[:data], {state[:id], state})
+            {:noreply, state}
+          end
+          succ_pid = Chief.lookup(MyChief, succ)
+          Peer.notify(succ_pid, state[:id])
+          :ets.insert(state[:data], {state[:id], state})
+          {:noreply, state}
+        end
+      end
+      :ets.insert(state[:data], {state[:id], state})
+      {:noreply, state}
+    else
+      # IO.puts "Stabilize on #{state[:id]}"
+      if(state[:succ]!= state[:pred]) do
+        succ = state[:succ]
+        [{_, succ_state}] = :ets.lookup(state[:data], succ)
+        x = succ_state[:pred]
+        b_og = state[:succ]
+        if(b_og != state[:id]) do
+          # b_og_pid = Chief.lookup(MyChief, b_og)
+          [{_, b_state}] = :ets.lookup(state[:data], succ)
+          # b = Peer.get_predecessor(b_og_pid)
+          b = b_state[:pred]
+          # IO.puts "Check range #{x} #{state[:id]} #{b}"
+          if Utils.real_deal_exclusion(x, state[:id], b) do
+            state = Map.replace(state, :succ, x)
+            x_pid = Chief.lookup(MyChief, x)
+            Peer.notify(x_pid, state[:id])
+            :ets.insert(state[:data], {state[:id], state})
+            {:noreply, state}
+          end
+          succ_pid = Chief.lookup(MyChief, succ)
+          Peer.notify(succ_pid, state[:id])
+          :ets.insert(state[:data], {state[:id], state})
+          {:noreply, state}
+        end
+      end
+      :ets.insert(state[:data], {state[:id], state})
+      {:noreply, state}
+    end
+  end
 
   # niotify is called periodically
   def handle_cast({:notify, peer_id}, state) do
@@ -150,12 +192,14 @@ defmodule Peer do
     if(pred == state[:id]) do
       if(pred == nil || Utils.real_deal_exclusion(peer_id, pred, state[:id])) do
         state = Map.replace(state, :pred, peer_id)
+        :ets.insert(state[:data], {state[:id], state})
         {:noreply, state}
       end
     else
       # IO.puts "Check range not self NOTIFY #{peer_id} #{pred} #{state[:id]}"
       if(pred == nil || Utils.real_deal_exclusion(peer_id, pred, state[:id])) do
         state = Map.replace(state, :pred, peer_id)
+        :ets.insert(state[:data], {state[:id], state})
         {:noreply, state}
       end
     end
@@ -330,8 +374,22 @@ defmodule Peer do
   def handle_info(:work, state) do
     if(state[:work] == true) do
       # IO.puts "Stabilize and fix fingers"
-      # stabilize(self())
       update_fingers(self())
+      # :timer.sleep(1000)
+      stabilize(self())
+    end
+
+    allow_work()
+    {:noreply, state}
+  end
+
+  # periodically calling stabilize and fix_fingers
+  def handle_info(:work_x, state) do
+    if(state[:work] == true) do
+      # IO.puts "Stabilize and fix fingers"
+      update_fingers(self())
+      # :timer.sleep(1000)
+      # stabilize(self())
     end
 
     allow_work()
@@ -353,12 +411,12 @@ defmodule Peer do
 
   defp allow_work() do
     # after 20000 ms
-    Process.send_after(self(), :work, 20000)
+    Process.send_after(self(), :work, 100)
   end
 
   defp init_fingers() do
     Enum.each(0..20, fn i ->
-      Process.send_after(self(), :work, 100)
+      Process.send_after(self(), :work_x, 100)
     end)
   end
 end

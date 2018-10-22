@@ -41,7 +41,7 @@ k = :sys.get_state(chief_pid)
 IO.puts "This is the chief state"
 IO.inspect k
 
-:timer.sleep(1000)
+:timer.sleep(5000)
 # Enum.each(0..numNodes-1, fn(i)->
 #   current_node = Enum.fetch!(node_list, i)
 #   [{_, state}] = :ets.lookup(data, current_node)
@@ -51,22 +51,65 @@ IO.inspect k
 #     IO.inspect Peer.get_state(Chief.lookup(MyChief, state[:id]))
 #   end
 # end
-:ets.insert(data, {:count, 0})
-Enum.each(0..numNodes-1, fn(i)->
-  current_node = Enum.fetch!(node_list, i)
-  node_excl_self = node_list -- [current_node]
-  count = 0
-  Enum.map(0..numReq-1, fn(j)->
-    rand_node = Enum.random(node_excl_self)
-    [{_, count}] = :ets.lookup(data, :count)
-    res = Utils.find_succ_acc(current_node, rand_node, data, 0)
-    :ets.insert(data, {:count, count+res})
-  end)
-end)
+# :ets.insert(data, {:count, 0})
+# Enum.each(0..numNodes-1, fn(i)->
+#   current_node = Enum.fetch!(node_list, i)
+#   node_excl_self = node_list -- [current_node]
+#   count = 0
+#   Enum.map(0..numReq-1, fn(j)->
+#     rand_node = Enum.random(node_excl_self)
+#     [{_, count}] = :ets.lookup(data, :count)
+#     res = Utils.find_succ_acc(current_node, rand_node, data, 0)
+#     :ets.insert(data, {:count, count+res})
+#   end)
+# end)
 
-[{_, count}] = :ets.lookup(data, :count)
-IO.puts "Average hops: #{(count/(numNodes*numReq))}"
+# [{_, count}] = :ets.lookup(data, :count)
+# IO.puts "Average hops: #{(count/(numNodes*numReq))}"
+
+# k = Enum.random(node_list)
+i = 5
+k = Enum.fetch!(node_list, i)
+k_index = Enum.find_index(node_list, fn i -> i==k end)
+
+IO.puts "Pred"
+[{_, state_1}] = :ets.lookup(data, Enum.fetch!(node_list, k_index - 1))
+IO.inspect state_1
+IO.puts "Succ"
+[{_, state_2}] = :ets.lookup(data, Enum.fetch!(node_list, k_index + 1))
+IO.inspect state_2
 
 
-# :timer.sleep(10000000)
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index - 3)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index - 2)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index - 1)))
+
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index + 1)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index + 2)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index + 3)))
+
+IO.puts "Killing #{k}"
+Chief.delete(MyChief, k)
+
+:timer.sleep(20000)
+IO.puts "after killing..."
+
+IO.puts "Pred"
+[{_, state_1}] = :ets.lookup(data, Enum.fetch!(node_list, k_index - 1))
+IO.inspect state_1
+IO.puts "Succ"
+[{_, state_2}] = :ets.lookup(data, Enum.fetch!(node_list, k_index + 1))
+IO.inspect state_2
+
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index - 3)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index - 2)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index - 1)))
+
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index + 1)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index + 2)))
+# IO.inspect Peer.get_state(Chief.lookup(MyChief, Enum.fetch!(node_list, k_index + 3)))
+
+#Process.exit(k_pid, :kill)
+
+:timer.sleep(10000000)
 # IO.inspect count = Utils.find_succ_acc(head, tail, data, 0)
