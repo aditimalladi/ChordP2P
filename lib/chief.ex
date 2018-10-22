@@ -75,6 +75,13 @@ defmodule Chief do
   def handle_call({:get_succ, node}, _from, state) do
     node_list = state[:node_list]
     node_i = Enum.find_index(node_list, fn i -> i==node end)
-    {:reply, Enum.fetch!(node_list, node_i+1), state}
+    cond do
+      node_i == nil ->
+        {:reply, node, state}
+      node_i == length(node_list) - 1 ->
+        {:reply, Enum.fetch!(node_list, 0), state}
+      true ->
+        {:reply, Enum.fetch!(node_list, node_i+1), state}
+    end
   end
 end
