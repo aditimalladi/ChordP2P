@@ -42,21 +42,16 @@ IO.puts "This is the chief state"
 IO.inspect k
 
 :timer.sleep(1000)
-
-
-Enum.each(0..numNodes-1, fn(i)->
-  current_node = Enum.fetch!(node_list, i)
-  [{_, state}] = :ets.lookup(data, current_node)
-  if(state[:id] == state[:succ] || state[:id] == state[:pred]) do
-    IO.inspect state
-    IO.puts "State"
-    IO.inspect Peer.get_state(Chief.lookup(MyChief, state[:id]))
-  end
-end)
-
-# :ets.insert(data, {:count, 0})
-
-
+# Enum.each(0..numNodes-1, fn(i)->
+#   current_node = Enum.fetch!(node_list, i)
+#   [{_, state}] = :ets.lookup(data, current_node)
+#   if(state[:id] == state[:succ] || state[:id] == state[:pred]) do
+#     # IO.inspect state
+#     # IO.puts "State"
+#     IO.inspect Peer.get_state(Chief.lookup(MyChief, state[:id]))
+#   end
+# end
+:ets.insert(data, {:count, 0})
 Enum.each(0..numNodes-1, fn(i)->
   current_node = Enum.fetch!(node_list, i)
   node_excl_self = node_list -- [current_node]
@@ -74,5 +69,4 @@ IO.puts "Average hops: #{(count/(numNodes*numReq))}"
 
 
 # :timer.sleep(10000000)
-
 # IO.inspect count = Utils.find_succ_acc(head, tail, data, 0)
