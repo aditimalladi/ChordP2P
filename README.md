@@ -34,5 +34,5 @@ The largest network we ran was for 10,000 nodes for 2 requests each, giving us a
 
 ## Authors
 
-* **Aditi Malladi UFID: 9828-6321**
-* **Suraj Kumar Reddy Thanugundla UFID: 3100-9916**
+* **Aditi Malladi **
+* **Suraj Kumar Reddy Thanugundla **
