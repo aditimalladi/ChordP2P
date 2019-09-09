@@ -34,5 +34,5 @@ The largest network we ran was for 10,000 nodes for 2 requests each, giving us a
 
 ## Authors
 
-* **Aditi Malladi **
-* **Suraj Kumar Reddy Thanugundla **
+* **Aditi Malladi**
+* **Suraj Kumar Reddy Thanugundla**
